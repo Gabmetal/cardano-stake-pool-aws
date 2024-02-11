@@ -2,35 +2,55 @@
 
 # shellcheck disable=SC1090,SC2086
 
-# Maintainer: Guild Operators
+######################################
+# Do NOT modify code below           #
+######################################
 
-PARENT="$(dirname "$0")"
-
-
-# I need to check if the testnet is properly now installed in block producer node when doing gliveview it will say
-# if not, then create the configure node script to do it
-# no reinstall required
-
-
-if [[ $(grep "_HOME=" "${PARENT}"/env) =~ ^#?([^[:space:]]+)_HOME ]]; then
-  vname=$(tr '[:upper:]' '[:lower:]' <<< "${BASH_REMATCH[1]}")
-else
-  echo "failed to get cnode instance name from env file, aborting!"
-  exit 1
-fi
+PARENT="$(dirname "$0")" 
 
 . "${PARENT}"/env offline
 
+vname="${CNODE_VNAME}"
+
 echo -e "\e[32m~~ Cardano Node ~~\e[0m"
-echo "launches the main cnode.sh script to start cardano-node"
+echo "launches the main cnode.sh script to deploy cardano-node"
 echo
 ./cnode.sh -d
 
 if grep -q "^PGPASSFILE=" "${CNODE_HOME}/scripts/dbsync.sh" 2> /dev/null || [[ -f "${CNODE_HOME}/priv/.pgpass" ]]; then
   echo -e "\e[32m~~ Cardano DB Sync ~~\e[0m"
-  echo "launches the dbsync.sh script to start cardano-db-sync"
+  echo "launches the dbsync.sh script to deploy cardano-db-sync"
   echo
   ./dbsync.sh -d
+fi
+
+echo -e "\e[32m~~ Cardano Submit API ~~\e[0m"
+echo "Deploy Cardano Submit API as systemd service? [y|n]"
+echo
+read -rsn1 yn
+if [[ ${yn} = [Yy]* ]]; then
+  ./submitapi.sh -d
+fi
+
+if command -v mithril-signer >/dev/null 2>&1 ; then
+  echo -e "\e[32m~~ Mithril Signer ~~\e[0m"
+  echo "Deploy Mithril Signer as a systemd service? [y|n]"
+  read -rsn1 yn
+  if [[ ${yn} = [Yy]* ]]; then
+    ./mithril-signer.sh -d
+  else
+    if [[ -f /etc/systemd/system/${vname}-mithril-signer.service ]]; then
+      sudo systemctl disable ${vname}-mithril-signer.service
+      sudo rm -f /etc/systemd/system/${vname}-mithril-signer.service
+    fi
+  fi
+fi
+
+if command -v ogmios >/dev/null 2>&1 ; then
+  echo -e "\e32m~~ Cardano Ogmios Server ~~\e[0m"
+  echo "launches the ogmios.sh script to deploy ogmios"
+  echo
+  ./ogmios.sh -d
 fi
 
 echo
@@ -40,9 +60,8 @@ echo "A service file is deployed that once every 60 min send a message to API. A
 echo "For more info, visit https://cardano-community.github.io/guild-operators/Scripts/topologyupdater"
 echo
 echo "Deploy Topology Updater as systemd services? (only for relay nodes) [y|n]"
-
-# this is custom logic so our init script automatically
-if [ "$IS_RELAY_NODE" = true ]; then
+read -rsn1 yn
+if [[ ${yn} = [Yy]* ]]; then
   sudo bash -c "cat << 'EOF' > /etc/systemd/system/${vname}-tu-push.service
 [Unit]
 Description=Cardano Node - Topology Updater - node alive push
@@ -138,7 +157,7 @@ else
 fi
 
 echo
-echo -e "\e[32m~~ Blocklog / PoolTool SendSlots ~~\e[0m"
+echo -e "\e[32m~~ Leaderlog / PoolTool SendSlots ~~\e[0m"
 echo "A collection of services that together creates a blocklog of current and upcoming blocks"
 echo "Dependant on ${vname}.service and when started|stopped|restarted all these companion services will apply the same action"
 echo "${vname}-cncli-sync        : Start CNCLI chainsync process that connects to cardano-node to sync blocks stored in SQLite DB"
@@ -280,7 +299,7 @@ After=${vname}.service
 [Service]
 Type=simple
 Restart=on-failure
-RestartSec=20
+RestartSec=1
 User=$USER
 WorkingDirectory=${CNODE_HOME}/scripts
 ExecStart=/bin/bash -l -c \"exec ${CNODE_HOME}/scripts/logMonitor.sh\"
@@ -373,19 +392,36 @@ else
   echo "cncli executable not found... skipping!"
 fi
 
+echo
+echo -e "\e[32m~~ BlockPerf / Propagation performance ~~\e[0m"
+echo "A service parsing the node block propagation times from announced header to adopted block"
+echo "sends block propagation time data to TopologyUpdater for common network analysis and performance comparison"
+echo "${vname}-tu-blockperf          : Parses JSON log of cardano-node for block network propagation times"
+echo
+echo "Deploy BlockPerf as systemd services? [y|n]"
+read -rsn1 yn
+if [[ ${yn} = [Yy]* ]]; then
+  ./blockPerf.sh -d
+else
+  if [[ -f /etc/systemd/system/${vname}-tu-blockperf.service ]]; then
+    sudo systemctl disable ${vname}-tu-blockperf.service
+    sudo rm -f /etc/systemd/system/${vname}-tu-blockperf.service
+  fi
+fi
 
 echo
 sudo systemctl daemon-reload
-[[ -f /etc/systemd/system/${vname}.service ]] && sudo systemctl enable ${vname}.service
 [[ -f /etc/systemd/system/${vname}-logmonitor.service ]] && sudo systemctl enable ${vname}-logmonitor.service
 [[ -f /etc/systemd/system/${vname}-tu-fetch.service ]] && sudo systemctl enable ${vname}-tu-fetch.service
 [[ -f /etc/systemd/system/${vname}-tu-restart.timer ]] && sudo systemctl enable ${vname}-tu-restart.timer
 [[ -f /etc/systemd/system/${vname}-tu-push.timer ]] && sudo systemctl enable ${vname}-tu-push.timer
+[[ -f /etc/systemd/system/${vname}-tu-blockperf.service ]] && sudo systemctl enable ${vname}-tu-blockperf.service
 [[ -f /etc/systemd/system/${vname}-cncli-sync.service ]] && sudo systemctl enable ${vname}-cncli-sync.service
 [[ -f /etc/systemd/system/${vname}-cncli-leaderlog.service ]] && sudo systemctl enable ${vname}-cncli-leaderlog.service
 [[ -f /etc/systemd/system/${vname}-cncli-validate.service ]] && sudo systemctl enable ${vname}-cncli-validate.service
 [[ -f /etc/systemd/system/${vname}-cncli-ptsendtip.service ]] && sudo systemctl enable ${vname}-cncli-ptsendtip.service
 [[ -f /etc/systemd/system/${vname}-cncli-ptsendslots.service ]] && sudo systemctl enable ${vname}-cncli-ptsendslots.service
+[[ -f /etc/systemd/system/${vname}-mithril-signer.service ]] && sudo systemctl enable ${vname}-mithril-signer.service
 
 
 echo

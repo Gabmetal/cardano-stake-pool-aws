@@ -1,6 +1,6 @@
-org: meemalabs # you should edit this value for your own use
+org: gabostodonte # you should edit this value for your own use
 app: cardano
-service: "meema-stake-pools"
+service: "gabo-stake-pools"
 useDotenv: true
 configValidationMode: error
 
@@ -11,7 +11,7 @@ provider:
   region: "us-east-1"
 
 resources:
-  Description: "Meema's Cardano Stake Pool environment"
+  Description: "Gabo's Cardano Stake Pool environment"
 
   Metadata:
     "AWS::CloudFormation::Interface":
@@ -1018,7 +1018,7 @@ resources:
   Outputs:
     StackName:
       Description: "Stack name."
-      Value: !Sub "Meema ${AWS::StackName}"
+      Value: !Sub "Gabo ${AWS::StackName}"
 
     AZs:
       Description: "Number of AZs"
