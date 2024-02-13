@@ -15,6 +15,19 @@ $CNODE_HOME/scripts/deploy-as-systemd.sh || exit 1
 sudo systemctl daemon-reload
 sudo systemctl restart cnode.service || exit 1
 
+# Define el tipo de red
+NETWORK_TYPE="testnet"  # Cambia a "mainnet" según sea necesario
+
+# Copia los archivos de configuración según el tipo de red
+CONFIG_SRC_DIR="$HOME/git/cardano-stake-pool-aws/config"
+if [ "$NETWORK_TYPE" = "mainnet" ]; then
+    CONFIG_SRC_DIR+="/mainnet"
+else
+    CONFIG_SRC_DIR+="/preview"
+fi
+cp ${CONFIG_SRC_DIR}/*.json $CNODE_HOME
+echo "Archivos de configuración para ${NETWORK_TYPE} copiados a ${CNODE_HOME}"
+
 # Configuración de topología
 if [ "$IS_RELAY_NODE" = true ]; then
     cat > $CNODE_HOME/${NODE_CONFIG}-topology.json << EOF
