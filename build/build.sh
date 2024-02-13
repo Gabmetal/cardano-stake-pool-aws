@@ -32,6 +32,6 @@ echo "Installed GHC version: $(ghc -V)"
 echo "Cardano Node location: $CNODE_HOME"
 echo "cardano-node version: $(cardano-node version)"
 echo "cardano-cli version: $(cardano-cli version)"
-echo "Status of Cardano Node: $(sudo systemctl status cnode.service)"
+echo "Status of Cardano Node: $(sudo systemctl status cardano-node)"
 
 echo $banner

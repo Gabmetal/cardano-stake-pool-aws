@@ -93,3 +93,9 @@ fi
 if [ -f ~/.ghcup/env ]; then
     . ~/.ghcup/env
 fi
+
+# Cardano node
+export PATH="/home/ubuntu/.local/bin:$PATH"
+export LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
+export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH"
+export CARDANO_NODE_SOCKET_PATH=/home/ubuntu/cardano-node/db/block/node.socket

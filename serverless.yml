@@ -864,9 +864,21 @@ resources:
         UserData:
           Fn::Base64: !Sub |
             #!/bin/bash
+
+            # Updating Your System
+            sudo apt-get update -y && sudo apt-get upgrade -y
+            sudo apt-get autoremove
+            sudo apt-get autoclean
+
+            # Enable automatic updates so you don't have to manually install them.
+            sudo apt-get install unattended-upgrades
+            sudo dpkg-reconfigure -plow unattended-upgrades
+
+            NODE_CONFIG=${env:NETWORK}
             mkdir /home/ubuntu/git
             cd /home/ubuntu/git
             git clone ${env:GIT_REPO_URL} cardano-stake-pool-aws
+
             cp ./cardano-stake-pool-aws/config/node-config /home/ubuntu/.node-config
             cd /home/ubuntu
             sed -i ./.node-config -e "s/SSH_PORT=/SSH_PORT=${env:SSH_PORT}/g"
@@ -874,6 +886,7 @@ resources:
             sed -i ./.node-config -e "s/BLOCK_PRODUCER_NODE_IP=/BLOCK_PRODUCER_NODE_IP=${BlockProducerNodeIp}/g"
             sed -i ./.node-config -e "s/RELAY_NODE_1_IP=/RELAY_NODE_1_IP=${RelayNode1Ip}/g"
             sed -i ./.node-config -e "s/RELAY_NODE_2_IP=/RELAY_NODE_2_IP=${RelayNode2Ip}/g"
+            
             chmod +x ./git/cardano-stake-pool-aws/scripts/*
             chmod +x ./git/cardano-stake-pool-aws/build/*
             cd ./git/cardano-stake-pool-aws/build
@@ -910,6 +923,17 @@ resources:
         UserData:
           Fn::Base64: !Sub |
             #!/bin/bash
+            
+            # Updating Your System
+            sudo apt-get update -y && sudo apt-get upgrade -y
+            sudo apt-get autoremove
+            sudo apt-get autoclean
+
+            # Enable automatic updates so you don't have to manually install them.
+            sudo apt-get install unattended-upgrades
+            sudo dpkg-reconfigure -plow unattended-upgrades
+
+            NODE_CONFIG=${env:NETWORK}
             mkdir /home/ubuntu/git
             cd /home/ubuntu/git
             git clone ${env:GIT_REPO_URL} cardano-stake-pool-aws
@@ -956,6 +980,17 @@ resources:
         UserData:
           Fn::Base64: !Sub |
             #!/bin/bash
+            
+            # Updating Your System
+            sudo apt-get update -y && sudo apt-get upgrade -y
+            sudo apt-get autoremove
+            sudo apt-get autoclean
+
+            # Enable automatic updates so you don't have to manually install them.
+            sudo apt-get install unattended-upgrades
+            sudo dpkg-reconfigure -plow unattended-upgrades
+
+            NODE_CONFIG=${env:NETWORK}
             mkdir /home/ubuntu/git
             cd /home/ubuntu/git
             git clone ${env:GIT_REPO_URL} cardano-stake-pool-aws

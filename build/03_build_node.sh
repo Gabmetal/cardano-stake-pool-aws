@@ -1,43 +1,47 @@
 #!/usr/bin/env bash
 
-# Maintainer: Meema Labs
-# Telegram: https://telegram.meema.io
-# Discord: https://discord.meema.io
+# Builds the Cardano Node from source code.
 
-# Builds the Cardano Node.
-
-start=`date +%s.%N`
-
+start=$(date +%s.%N)
 banner="--------------------------------------------------------------------------"
 
-eval "$(cat /home/ubuntu/.bashrc | tail -n +10)"
+# Navigate to the working directory
+mkdir -p "$HOME/git"
+cd "$HOME/git" || exit 1
 
-mkdir -p /home/ubuntu/git
-# ensure that the proper permissions are used
-sudo chown -R ubuntu:ubuntu /home/ubuntu/git
-cd /home/ubuntu/git
+# Clone Cardano Node repository
+git clone https://github.com/input-output-hk/cardano-node.git
+cd cardano-node || exit 1
 
-git clone https://github.com/intersectmbo/cardano-node
-cd cardano-node
+# Fetch all tags and submodules
+git fetch --all --recurse-submodules --tags
 
-git fetch --tags --recurse-submodules --all
-git pull
-# replace tag against checkout if you do not want to build the latest released version
-git checkout $(curl -sLf https://api.github.com/repos/intersectmbo/cardano-node/releases/latest | jq -r .tag_name)
+# Checkout the latest tagged version
+LATEST_TAG=$(curl -s https://api.github.com/repos/input-output-hk/cardano-node/releases/latest | jq -r .tag_name)
+git checkout "$LATEST_TAG"
 
-# use `-l` argument if you'd like to use system libsodium instead of IOG fork of libsodium while compiling
-$CNODE_HOME/scripts/cabal-build-all.sh
+# Update Cabal and configure the build
+cabal update
+GHC_VERSION=$(ghc --version | awk '{print $NF}') # Automatically detect GHC version
+cabal configure -O0 -w ghc-"$GHC_VERSION"
 
-# we are only adding this symlink for convenience reasons
-ln -sf $CNODE_HOME /home/ubuntu/my-cardano-node
+# Create cabal.project.local file and configure it to avoid installing custom libsodium
+echo "package cardano-crypto-praos" >> cabal.project.local
+echo "  flags: -external-libsodium-vrf" >> cabal.project.local
 
-eval "$(cat /home/ubuntu/.bashrc | tail -n +10)"
+# Build the cardano-node and cardano-cli binaries
+cabal build cardano-node cardano-cli
 
-end=`date +%s.%N`
-runtime=$( echo "$end - $start" | bc -l ) || true
+# Copy the binaries to /usr/local/bin
+sudo cp -p "$(./scripts/bin-path.sh cardano-node)" /usr/local/bin/cardano-node
+sudo cp -p "$(./scripts/bin-path.sh cardano-cli)" /usr/local/bin/cardano-cli
 
-echo $banner
+end=$(date +%s.%N)
+runtime=$(echo "$end - $start" | bc -l)
+
+# Display script completion information
+echo "$banner"
 echo "Script runtime: $runtime seconds"
-echo "cardano-node version: $(cardano-node version)"
-echo "cardano-cli version: $(cardano-cli version)"
-echo $banner
+echo "cardano-node version: $(cardano-node --version)"
+echo "cardano-cli version: $(cardano-cli --version)"
+echo "$banner"

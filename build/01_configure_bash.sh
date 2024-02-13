@@ -1,37 +1,68 @@
 #!/usr/bin/env bash
 
-# Maintainer: Meema Labs
-# Telegram: https://telegram.meema.io
-# Discord: https://discord.meema.io
+# Configura bash con un conjunto de alias y variables requeridas.
 
-# Configures bash with a set of aliases and required variables.
-
-start=`date +%s.%N`
+start=$(date +%s.%N)
 
 banner="--------------------------------------------------------------------------"
 
-# symlink the .bashrc file and copy some node specific variables
-cp -f ~/git/cardano-stake-pool-aws/config/.bashrc ~/.bashrc
+# Definir rutas de archivos y directorios
+PROJECT_DIR="$HOME/git/cardano-stake-pool-aws"  # Asegúrate de que esta ruta sea dinámica o configurable.
+BASHRC_SOURCE="${PROJECT_DIR}/config/.bashrc"
+BASHRC_TARGET="$HOME/.bashrc"
+NODE_CONFIG_FILE="$HOME/.node-config"  # Hace que esta ruta sea fácilmente modificable o documentada.
 
-eval "$(cat /home/ubuntu/.bashrc | tail -n +10)"
+# Copiar el archivo .bashrc personalizado
+if [ -f "${BASHRC_SOURCE}" ]; then
+    cp -f "${BASHRC_SOURCE}" "${BASHRC_TARGET}"
+else
+    echo "Archivo ${BASHRC_SOURCE} no encontrado."
+    exit 1
+fi
 
-# if [ "$NODE_CONFIG" = "mainnet" ]; then
-#     sed -i ~/.node-config -e "s/NETWORK_ARGUMENT=/NETWORK_ARGUMENT=--mainnet/g"
-# elif [ "$NODE_CONFIG" = "testnet" ]; then
-sed -i ~/.node-config -e "s/NETWORK_ARGUMENT=/NETWORK_ARGUMENT='--testnet-magic 1097911063'/g"
-# elif [ "$NODE_CONFIG" = "guild" ]; then
-#     sed -i ~/.node-config -e "s/NETWORK_ARGUMENT=/NETWORK_ARGUMENT=--guild/g"
-# elif [ "$NODE_CONFIG" = "staging" ]; then
-#     sed -i ~/.node-config -e "s/NETWORK_ARGUMENT=/NETWORK_ARGUMENT=--staging/g"
-# fi
+# Evaluar los alias y variables del .bashrc
+if ! source "${BASHRC_TARGET}"; then
+    echo "Error al cargar ${BASHRC_TARGET}"
+    exit 1
+fi
 
-eval "$(cat /home/ubuntu/.bashrc | tail -n +10)"
+# Configurar NETWORK_ARGUMENT basado en NODE_CONFIG
+configure_network_argument() {
+    local network_arg=""
+    case "$NODE_CONFIG" in
+        "mainnet")
+            network_arg="--mainnet"
+            ;;
+        "testnet")
+            network_arg="--testnet-magic 1097911063"
+            ;;
+        "guild")
+            network_arg="--guild"
+            ;;
+        "staging")
+            network_arg="--staging"
+            ;;
+        *)
+            echo "NODE_CONFIG no reconocido: $NODE_CONFIG"
+            exit 1
+    esac
 
-end=`date +%s.%N`
-runtime=$( echo "$end - $start" | bc -l ) || true
+    if ! sed -i -e "s|NETWORK_ARGUMENT=|NETWORK_ARGUMENT=${network_arg}|g" "${NODE_CONFIG_FILE}"; then
+        echo "Error al configurar NETWORK_ARGUMENT en ${NODE_CONFIG_FILE}"
+        exit 1
+    fi
+}
 
-echo $banner
+# Llamar a la función configure_network_argument
+configure_network_argument
+
+# Tiempo de ejecución del script
+end=$(date +%s.%N)
+runtime=$(echo "$end - $start" | bc -l)
+
+# Mostrar información del script
+echo "$banner"
 echo "Script runtime: $runtime seconds"
 echo "HELPERS: $HELPERS"
-echo "NETWORK_ARGUMENT: $NETWORK_ARGUMENT"
-echo $banner
+echo "NETWORK_ARGUMENT: $(grep 'NETWORK_ARGUMENT=' ${NODE_CONFIG_FILE})"
+echo "$banner"

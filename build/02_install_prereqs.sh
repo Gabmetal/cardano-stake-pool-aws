@@ -4,51 +4,65 @@
 # Telegram: https://telegram.meema.io
 # Discord: https://discord.meema.io
 
-# Let's install all of our Cardano Node dependencies to ensure we are up to date and have all the latest security and bug fixes included.
+# This script installs all dependencies required for the Cardano Node, ensuring everything is up-to-date.
 
-start=`date +%s.%N`
-
+start=$(date +%s.%N)
 banner="--------------------------------------------------------------------------"
 
-eval "$(cat /home/ubuntu/.bashrc | tail -n +10)"
+# Versions of dependencies
+LIBSODIUM_VERSION="dbb48cc"
+LIBSECP256K1_VERSION="ac83be33"
 
-mkdir $HOME/tmp
-cd $HOME/tmp
+# Update and upgrade packages
+sudo apt-get update -y
+sudo apt-get upgrade -y
 
+# Install required packages
+sudo apt-get install -y automake build-essential pkg-config libffi-dev libgmp-dev libssl-dev \
+libtinfo-dev libsystemd-dev zlib1g-dev make g++ tmux git jq wget libncursesw5 \
+libtool autoconf nano screen iputils-ping chrony net-tools curl htop liblmdb-dev
 
-##########################################
-# User Variables - Change as desired     #
-# command line flags override set values #
-##########################################
-#G_ACCOUNT="cardano-community"    # Override github GUILD account if you forked the project
-NETWORK='testnet'      # Connect to specified network instead of public network (Default: connect to public cardano network)
-#WANT_BUILD_DEPS='Y'    # Skip installing OS level dependencies (Default: will check and install any missing OS level prerequisites)
-#FORCE_OVERWRITE='N'    # Force overwrite of all files including normally saved user config sections in env, cnode.sh and gLiveView.sh
-                        # topology.json, config.json and genesis files normally saved will also be overwritten
-LIBSODIUM_FORK='Y'     # Use IOG fork of libsodium instead of official repositories - Recommended as per IOG instructions (Default: IOG fork)
-INSTALL_CNCLI='Y'      # Install/Upgrade and build CNCLI with RUST
-#INSTALL_CWHCLI='N'       # Install/Upgrade Vacuumlabs cardano-hw-cli for hardware wallet support
-#INSTALL_OGMIOS='N'     # Install Ogmios Server
-#INSTALL_CSIGNER='N'    # Install/Upgrade Cardano Signer
-#CNODE_NAME='cnode'     # Alternate name for top level folder, non alpha-numeric chars will be replaced with underscore (Default: cnode)
-#CURL_TIMEOUT=60        # Maximum time in seconds that you allow the file download operation to take before aborting (Default: 60s)
-UPDATE_CHECK='Y'       # Check if there is an updated version of guild-deploy.sh script to download
-#SUDO='Y'               # Used by docker builds to disable sudo, leave unchanged if unsure.
-#SKIP_DBSYNC_DOWNLOAD='N' # When using -i d switch, used by docker builds or users who might not want to download dbsync binary
+# Prepare environment
+mkdir -p ~/.local/bin
+mkdir -p ~/src && cd ~/src || exit 1
 
-CUSTOM_PEERS="${RELAY_NODE_1_IP}:6000|${RELAY_NODE_2_IP}:6000"    # Additional custom peers to (IP:port[:valency]) to add to your target topology.json
+# Install GHCup, GHC, and Cabal
+curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | BOOTSTRAP_HASKELL_NONINTERACTIVE=1 BOOTSTRAP_HASKELL_GHC_VERSION=latest BOOTSTRAP_HASKELL_CABAL_VERSION=latest BOOTSTRAP_HASKELL_INSTALL_STACK=1 BOOTSTRAP_HASKELL_INSTALL_HLS=0 BOOTSTRAP_HASKELL_ADJUST_BASHRC=P sh
 
-curl -sS -o guild-deploy.sh https://raw.githubusercontent.com/cardano-community/guild-operators/master/scripts/cnode-helper-scripts/guild-deploy.sh
-chmod 755 guild-deploy.sh
-./guild-deploy.sh -b master -n preview -t cnode -s pdlcowx
-. "${HOME}/.bashrc"
+# Reload .bashrc to apply changes made by GHCup installation
+source "$HOME/.bashrc" || exit 1
 
-eval "$(cat /home/ubuntu/.bashrc | tail -n +10)"
+# Install libsodium
+git clone https://github.com/input-output-hk/libsodium || exit 1
+cd libsodium || exit 1
+git checkout $LIBSODIUM_VERSION || exit 1
+./autogen.sh || exit 1
+./configure || exit 1
+make || exit 1
+sudo make install || exit 1
 
-end=`date +%s.%N`
-runtime=$( echo "$end - $start" | bc -l ) || true
+# Return to the src directory before cloning the next repository
+cd ~/src || exit 1
 
-echo $banner
+# Install libsecp256k1
+git clone https://github.com/bitcoin-core/secp256k1 || exit 1
+cd secp256k1 || exit 1
+git checkout $LIBSECP256K1_VERSION || exit 1
+./autogen.sh || exit 1
+./configure --prefix=/usr --enable-module-schnorrsig --enable-experimental || exit 1
+make || exit 1
+sudo make install || exit 1
+
+# Clean up
+cd $HOME || exit 1
+rm -rf ~/src/libsodium
+rm -rf ~/src/secp256k1
+
+end=$(date +%s.%N)
+runtime=$(echo "$end - $start" | bc -l)
+
+# Display script completion information
+echo "$banner"
 echo "Script runtime: $runtime seconds"
-echo "Finished installing server dependencies"
-echo $banner
+echo "Finished installing server dependencies."
+echo "$banner"
