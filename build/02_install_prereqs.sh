@@ -17,6 +17,10 @@ LIBSECP256K1_VERSION="ac83be33"
 sudo apt-get update -y
 sudo apt-get upgrade -y
 
+# Enable automatic updates so you don't have to manually install them.
+sudo apt-get install unattended-upgrades
+sudo dpkg-reconfigure -plow unattended-upgrades
+
 # Install required packages
 sudo apt-get install -y automake build-essential pkg-config libffi-dev libgmp-dev libssl-dev \
 libtinfo-dev libsystemd-dev zlib1g-dev make g++ tmux git jq wget libncursesw5 \
